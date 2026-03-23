@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { format, isToday, isFuture, isPast } from 'date-fns'
@@ -327,5 +327,13 @@ function Content() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function StaffTracking() {
+  return (
+    <Suspense fallback={<div className="p-8 text-cream/30">Loading...</div>}>
+      <Content />
+    </Suspense>
   )
 }
