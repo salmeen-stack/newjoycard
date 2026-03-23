@@ -12,6 +12,8 @@ export function middleware(req: NextRequest) {
     '/api/auth',
     '/api/debug', // Allow debug APIs for analysis
     '/api/invitations/verify', // Make sure invite verification API is public
+    '/api/invitations/upload', // Make sure upload API is public
+    '/api/invitations/', // Make sure all invitation APIs with tokens are public
     '/_next',
     '/favicon',
     '/uploads'

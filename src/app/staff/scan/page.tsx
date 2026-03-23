@@ -103,8 +103,19 @@ function Content() {
     
     try {
       // Parse QR code to extract guest info without auto-verifying
-      const response = await fetch(`/api/invitations/parse/${token}`, { method: 'POST' })
+      const response = await fetch(`/api/invitations/${token}/parse`, { method: 'POST' })
       console.log('Parse API response status:', response.status)
+      
+      // Check if response is HTML (error page) instead of JSON
+      const contentType = response.headers.get('content-type')
+      console.log('Response content-type:', contentType)
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.log('Received HTML response instead of JSON:', text.substring(0, 200))
+        throw new Error('API returned HTML error page - check server logs')
+      }
+      
       const data = await response.json()
       console.log('Parse API response data:', data)
       
@@ -424,7 +435,7 @@ function Content() {
             <div className="mb-6 w-full">
               <p className="text-cream/60 text-sm mb-2">Debug: Test with sample token</p>
               <button
-                onClick={() => handleScan('a1b2c3d4e5f678901234567890123456789012345678')}
+                onClick={() => handleScan('550e8400-e29b-41d4-a716-446655440000')}
                 className="btn-ghost w-full text-sm"
               >
                 🧪 Test with Sample Token
