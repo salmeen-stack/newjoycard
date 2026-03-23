@@ -22,6 +22,124 @@ function Content() {
   const [importing, setImporting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'checked-in' | 'not-checked-in'>('all')
+  const [selectedGuests, setSelectedGuests] = useState<number[]>([])
+  const [bulkAction, setBulkAction] = useState<'send' | 'resend' | 'export' | null>(null)
+  const [bulkSending, setBulkSending] = useState(false)
+
+  // Smart suggestions based on patterns
+  const getSmartSuggestions = (name: string, contact: string) => {
+    const suggestions = []
+    
+    // Card type suggestions based on name patterns
+    if (name.toLowerCase().includes('mr') || name.toLowerCase().includes('mrs') || name.toLowerCase().includes('dr')) {
+      suggestions.push({ type: 'card_type', value: 'single', reason: 'Professional title detected' })
+    }
+    if (name.toLowerCase().includes('and') || name.toLowerCase().includes('&')) {
+      suggestions.push({ type: 'card_type', value: 'double', reason: 'Couple detected' })
+    }
+    
+    // Dress code suggestions based on event type
+    const currentEvent = asgns.find(a => String(a.event_id) === selEvent)
+    if (currentEvent?.event_title?.toLowerCase().includes('wedding')) {
+      suggestions.push({ type: 'dress_code', value: 'Formal', reason: 'Wedding event' })
+    } else if (currentEvent?.event_title?.toLowerCase().includes('corporate')) {
+      suggestions.push({ type: 'dress_code', value: 'Business Casual', reason: 'Corporate event' })
+    }
+    
+    return suggestions
+  }
+
+  const applySuggestion = (type: string, value: string) => {
+    if (type === 'card_type') {
+      setForm(f => ({ ...f, card_type: value }))
+    } else if (type === 'dress_code') {
+      setForm(f => ({ ...f, dress_code: value }))
+    }
+  }
+
+  const handleSelectAll = () => {
+    if (selectedGuests.length === filteredGuests.length) {
+      setSelectedGuests([])
+    } else {
+      setSelectedGuests(filteredGuests.map(g => g.id))
+    }
+  }
+
+  const handleSelectGuest = (guestId: number) => {
+    setSelectedGuests(prev => 
+      prev.includes(guestId) 
+        ? prev.filter(id => id !== guestId)
+        : [...prev, guestId]
+    )
+  }
+
+  const handleBulkSend = async () => {
+    if (selectedGuests.length === 0) {
+      toast.error('Please select guests to send invitations')
+      return
+    }
+    
+    setBulkSending(true)
+    try {
+      const promises = selectedGuests.map(async (guestId) => {
+        const guest = guests.find(g => g.id === guestId)
+        if (!guest || !guest.inv_id) return
+        
+        const response = await fetch('/api/invitations', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invitation_id: guest.inv_id,
+            send_email: guest.channel === 'email',
+            send_whatsapp: guest.channel === 'whatsapp'
+          })
+        })
+        
+        return response.ok
+      })
+      
+      const results = await Promise.all(promises)
+      const successCount = results.filter(r => r).length
+      
+      toast.success(`Invitations sent to ${successCount}/${selectedGuests.length} guests`)
+      setSelectedGuests([])
+      load()
+    } catch (error) {
+      toast.error('Failed to send bulk invitations')
+    } finally {
+      setBulkSending(false)
+    }
+  }
+
+  const handleBulkExport = () => {
+    if (selectedGuests.length === 0) {
+      toast.error('Please select guests to export')
+      return
+    }
+    
+    const selectedGuestData = guests.filter(g => selectedGuests.includes(g.id))
+    const csv = [
+      ['Name', 'Contact', 'Channel', 'Card Type', 'Status'],
+      ...selectedGuestData.map(g => [
+        g.name,
+        g.contact,
+        g.channel,
+        g.card_type || 'single',
+        g.scanned_at ? 'Checked In' : 'Not Checked In'
+      ])
+    ].map(row => row.join(',')).join('\n')
+    
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `guests_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    toast.success(`Exported ${selectedGuests.length} guests`)
+    setSelectedGuests([])
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -211,6 +329,49 @@ function Content() {
           </div>
         )}
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedGuests.length > 0 && (
+        <motion.div 
+          initial={{opacity:0, y:-10}} 
+          animate={{opacity:1, y:0}} 
+          className="glass-gold p-4 mb-6 flex flex-wrap items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-cream font-medium">
+              {selectedGuests.length} guest{selectedGuests.length !== 1 ? 's' : ''} selected
+            </span>
+            <button 
+              onClick={handleSelectAll}
+              className="btn-ghost text-sm py-1.5 px-3"
+            >
+              {selectedGuests.length === filteredGuests.length ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={handleBulkSend}
+              disabled={bulkSending}
+              className="btn-gold text-sm py-1.5 px-3 disabled:opacity-40"
+            >
+              {bulkSending ? 'Sending...' : '📧 Send Invitations'}
+            </button>
+            <button 
+              onClick={handleBulkExport}
+              className="btn-ghost text-sm py-1.5 px-3"
+            >
+              📥 Export CSV
+            </button>
+            <button 
+              onClick={() => setSelectedGuests([])}
+              className="btn-ghost text-sm py-1.5 px-3"
+            >
+              ✕ Clear Selection
+            </button>
+          </div>
+        </motion.div>
+      )}
       
       {searchTerm && (
         <div className="mb-4">
@@ -291,6 +452,30 @@ function Content() {
                     />
                   </div>
                 </div>
+                
+                {/* Smart Suggestions */}
+                {form.name && (
+                  <div className="mt-4 p-3 bg-gold/10 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <i className="fa-solid fa-lightbulb text-gold text-sm"></i>
+                      <span className="text-cream/80 text-sm font-medium">Smart Suggestions</span>
+                    </div>
+                    <div className="space-y-2">
+                      {getSmartSuggestions(form.name, form.contact).map((suggestion, index) => (
+                        <div key={index} className="flex items-center justify-between text-xs">
+                          <span className="text-cream/60">{suggestion.reason}</span>
+                          <button
+                            onClick={() => applySuggestion(suggestion.type, suggestion.value)}
+                            className="text-gold hover:text-gold/80 transition-colors"
+                          >
+                            {suggestion.type === 'card_type' ? `Set to ${suggestion.value}` : `Use "${suggestion.value}"`}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button type="submit" disabled={saving} className="btn-gold flex-1">
                     {saving ? (editingId ? 'Updating…' : 'Adding…') : (editingId ? 'Update Guest' : 'Add Guest')}
@@ -379,10 +564,25 @@ function Content() {
           <div className="p-16 text-center"><div className="empty-icon mx-auto"><i className="fa-solid fa-ticket text-gold/60"></i></div><p className="font-display text-lg text-cream mb-2">No Guests</p><p className="text-cream/35 text-sm">Select an event and add guests.</p></div>
         ) : (
           <table className="table">
-            <thead><tr><th>Name</th><th>Contact</th><th>Channel</th><th>Card</th><th>Dress Code</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th className="w-12">
+              <input 
+                type="checkbox" 
+                checked={selectedGuests.length === filteredGuests.length && filteredGuests.length > 0}
+                onChange={handleSelectAll}
+                className="rounded border-gold/20 bg-white/10 text-gold focus:ring-gold focus:ring-offset-0"
+              />
+            </th><th>Name</th><th>Contact</th><th>Channel</th><th>Card</th><th>Dress Code</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {filteredGuests.map(g=>(
-                <tr key={g.id}>
+                <tr key={g.id} className={selectedGuests.includes(g.id) ? 'bg-gold/5' : ''}>
+                  <td>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedGuests.includes(g.id)}
+                      onChange={() => handleSelectGuest(g.id)}
+                      className="rounded border-gold/20 bg-white/10 text-gold focus:ring-gold focus:ring-offset-0"
+                    />
+                  </td>
                   <td className="font-medium text-cream">{g.name}</td>
                   <td className="text-cream/45 text-xs">{g.contact}</td>
                   <td><span className={`badge ${g.channel==='email'?'badge-gold':'badge-teal'}`}>{g.channel}</span></td>

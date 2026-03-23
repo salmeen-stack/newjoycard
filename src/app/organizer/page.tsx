@@ -15,6 +15,27 @@ export default function OrganizerDashboard() {
   const [showEditEvent, setShowEditEvent] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [currentUser, setCurrentUser] = useState<{name: string, email: string, role: string} | null>(null)
+  const [showTemplates, setShowTemplates] = useState(false)
+  
+  // Event templates for quick setup
+  const eventTemplates = [
+    {
+      name: 'Corporate Event',
+      defaults: { guest_limit: 100, location: 'Conference Center', description: 'Professional corporate gathering' }
+    },
+    {
+      name: 'Wedding',
+      defaults: { guest_limit: 150, location: 'Wedding Venue', description: 'Beautiful wedding celebration' }
+    },
+    {
+      name: 'Birthday Party',
+      defaults: { guest_limit: 50, location: 'Party Venue', description: 'Fun birthday celebration' }
+    },
+    {
+      name: 'Casual Gathering',
+      defaults: { guest_limit: 30, location: 'Community Center', description: 'Relaxed get-together' }
+    }
+  ]
 
   useEffect(()=>{
     fetch('/api/admin/assignments')
@@ -54,6 +75,12 @@ export default function OrganizerDashboard() {
               </div>
             )}
             <button 
+              onClick={() => setShowTemplates(true)}
+              className="btn-ghost text-sm px-4 py-2"
+            >
+              <i className="fa-solid fa-layer-group mr-2"></i>Templates
+            </button>
+            <button 
               onClick={() => setShowCreateEvent(true)}
               className="btn-gold text-sm px-4 py-2"
             >
@@ -62,6 +89,53 @@ export default function OrganizerDashboard() {
           </div>
         </div>
       </motion.div>
+
+      {/* Quick Stats Dashboard */}
+      {!loading && asgns.length > 0 && (
+        <motion.div 
+          initial={{opacity:0, y:20}} 
+          animate={{opacity:1, y:0}} 
+          className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8"
+        >
+          <div className="glass-gold p-4 text-center">
+            <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-2">
+              <i className="fa-solid fa-calendar text-gold"></i>
+            </div>
+            <p className="text-cream font-display text-2xl font-bold">{asgns.length}</p>
+            <p className="text-cream/25 text-xs">Total Events</p>
+          </div>
+          
+          <div className="glass-gold p-4 text-center">
+            <div className="w-10 h-10 rounded-full bg-teal/20 flex items-center justify-center mx-auto mb-2">
+              <i className="fa-solid fa-users text-teal"></i>
+            </div>
+            <p className="text-cream font-display text-2xl font-bold">
+              {asgns.reduce((sum, a) => sum + a.guests_added, 0)}
+            </p>
+            <p className="text-cream/25 text-xs">Total Guests</p>
+          </div>
+          
+          <div className="glass-gold p-4 text-center">
+            <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-2">
+              <i className="fa-solid fa-user-check text-gold"></i>
+            </div>
+            <p className="text-cream font-display text-2xl font-bold">
+              {asgns.reduce((sum, a) => sum + a.guest_limit, 0)}
+            </p>
+            <p className="text-cream/25 text-xs">Total Capacity</p>
+          </div>
+          
+          <div className="glass-gold p-4 text-center">
+            <div className="w-10 h-10 rounded-full bg-teal/20 flex items-center justify-center mx-auto mb-2">
+              <i className="fa-solid fa-chart-pie text-teal"></i>
+            </div>
+            <p className="text-cream font-display text-2xl font-bold">
+              {Math.round((asgns.reduce((sum, a) => sum + a.guests_added, 0) / asgns.reduce((sum, a) => sum + a.guest_limit, 0)) * 100)}%
+            </p>
+            <p className="text-cream/25 text-xs">Avg Fill Rate</p>
+          </div>
+        </motion.div>
+      )}
 
       {loading ? (
         <div className="grid sm:grid-cols-2 gap-4">{Array(2).fill(0).map((_,i)=><div key={i} className="glass-gold p-6 h-48 animate-pulse" />)}</div>
@@ -133,6 +207,7 @@ export default function OrganizerDashboard() {
             <h2 className="font-display text-2xl text-cream mb-6">Create New Event</h2>
             
             <form 
+              id="create-event-form"
               onSubmit={async (e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
@@ -354,6 +429,88 @@ export default function OrganizerDashboard() {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Templates Modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 bg-navy-900/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <motion.div 
+            initial={{opacity:0}} 
+            animate={{opacity:1}} 
+            className="glass-gold p-6 sm:p-8 max-w-2xl w-full max-h-[90dvh] overflow-y-auto"
+          >
+            <h2 className="font-display text-2xl text-cream mb-6">Event Templates</h2>
+            <p className="text-cream/40 text-sm mb-6">Choose a template to quickly create your event with pre-filled details.</p>
+            
+            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+              {eventTemplates.map((template, index) => (
+                <motion.div
+                  key={template.name}
+                  initial={{opacity:0, y:20}}
+                  animate={{opacity:1, y:0}}
+                  transition={{delay: index * 0.1}}
+                  className="glass-gold p-4 cursor-pointer hover:bg-white/10 transition-colors"
+                  onClick={() => {
+                    setShowTemplates(false)
+                    setShowCreateEvent(true)
+                    // Pre-fill form with template defaults
+                    setTimeout(() => {
+                      const form = document.querySelector('#create-event-form') as HTMLFormElement
+                      if (form) {
+                        form.guest_limit.value = template.defaults.guest_limit
+                        form.location.value = template.defaults.location
+                        form.description.value = template.defaults.description
+                      }
+                    }, 100)
+                  }}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
+                      <i className={`fa-solid ${
+                        template.name === 'Corporate Event' ? 'fa-building' :
+                        template.name === 'Wedding' ? 'fa-heart' :
+                        template.name === 'Birthday Party' ? 'fa-gift' :
+                        'fa-users'
+                      } text-gold`}></i>
+                    </div>
+                    <h3 className="font-display text-lg font-semibold text-cream">{template.name}</h3>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-cream/60">Guest Limit:</span>
+                      <span className="text-cream">{template.defaults.guest_limit}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-cream/60">Location:</span>
+                      <span className="text-cream">{template.defaults.location}</span>
+                    </div>
+                    <div className="pt-2 border-t border-white/10">
+                      <p className="text-cream/40 text-xs">{template.defaults.description}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowTemplates(false)}
+                className="btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setShowTemplates(false)
+                  setShowCreateEvent(true)
+                }}
+                className="btn-gold flex-1"
+              >
+                Create Custom Event
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

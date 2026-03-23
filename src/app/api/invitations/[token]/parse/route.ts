@@ -47,8 +47,8 @@ export async function POST(
     
     console.log('QR Parse API - Extracted guest ID:', guestId)
     
-    // Get guest information from database
-    const [guest] = await sql`
+    // Get guest information from database using qr_token
+    const [invitation] = await sql`
       SELECT 
         g.id,
         g.name,
@@ -56,24 +56,25 @@ export async function POST(
         g.dress_code,
         e.title as event_title,
         e.date as event_date
-      FROM guests g
+      FROM invitations i
+      JOIN guests g ON g.id = i.guest_id
       JOIN events e ON e.id = g.event_id
-      WHERE g.id = ${guestId}
+      WHERE i.qr_token = ${guestId}
       LIMIT 1
     `
     
-    if (!guest) {
-      return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+    if (!invitation) {
+      return NextResponse.json({ error: 'Invitation not found' }, { status: 404 })
     }
     
     return NextResponse.json({
       guest: {
-        id: guest.id,
-        name: guest.name,
-        card_type: guest.card_type,
-        dress_code: guest.dress_code,
-        event_title: guest.event_title,
-        event_date: guest.event_date
+        id: invitation.id,
+        name: invitation.name,
+        card_type: invitation.card_type,
+        dress_code: invitation.dress_code,
+        event_title: invitation.event_title,
+        event_date: invitation.event_date
       }
     })
     
