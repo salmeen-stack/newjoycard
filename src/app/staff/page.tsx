@@ -472,7 +472,11 @@ export default function StaffDashboard() {
             <p className="text-cream/30 text-xs tracking-widest uppercase mb-1">Staff</p>
             <h1 className="font-display text-3xl sm:text-4xl font-semibold text-cream">Upcoming Events</h1>
             <p className="text-cream/35 text-sm mt-1">
-              {currentAssignment ? '<i className="fa-solid fa-ban mr-1"></i>Currently assigned' : '<i className="fa-solid fa-circle-check mr-1 text-teal"></i>You can take an event'}
+              {currentAssignment ? (
+                <i className="fa-solid fa-ban mr-1"></i>You can take an event
+              ) : (
+                <i className="fa-solid fa-circle-check mr-1 text-teal"></i>You can take an event
+              )}
             </p>
           </div>
           {currentUser && (

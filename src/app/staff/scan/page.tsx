@@ -8,6 +8,7 @@ interface ScanResult { valid:boolean; alreadyScanned:boolean; message:string; gu
 interface Recent { name:string; card_type:string; time:string }
 interface GuestInfo {
   id: string
+  qr_token: string
   name: string
   card_type: string
   dress_code: string
@@ -159,8 +160,8 @@ function Content() {
     if (!capturedGuest) return
     
     try {
-      // Use invitation ID from parsed guest data
-      const response = await fetch(`/api/invitations/verify/${capturedGuest.id}`, { method: 'POST' })
+      // Use QR token for verify API
+      const response = await fetch(`/api/invitations/verify/${capturedGuest.qr_token}`, { method: 'POST' })
       const data = await response.json()
       
       if (data.valid) {

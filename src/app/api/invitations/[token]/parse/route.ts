@@ -74,7 +74,8 @@ export async function POST(
         card_type: invitation.card_type,
         dress_code: invitation.dress_code,
         event_title: invitation.event_title,
-        event_date: invitation.event_date
+        event_date: invitation.event_date,
+        qr_token: guestId // Add QR token for verify API
       }
     })
     
