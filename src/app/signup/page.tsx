@@ -1,0 +1,223 @@
+'use client'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
+
+export default function SignupPage() {
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('+255')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [role, setRole] = useState<'organizer' | 'staff'>('organizer')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+
+    // Client-side validation
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password, role }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Signup failed')
+        setLoading(false)
+        return
+      }
+
+      // If verification is required, redirect to login immediately
+      if (data.requiresVerification) {
+        toast.success('Account created successfully! Redirecting to login...')
+        setLoading(false) // Reset loading state
+
+        // Try Next.js router first
+        setTimeout(() => {
+          router.push('/login')
+
+          // Fallback to window.location if router doesn't work
+          setTimeout(() => {
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'
+            }
+          }, 500)
+        }, 100)
+        return
+      }
+
+      // For admin (auto-login), show success and redirect
+      toast.success(data.message || 'Account created successfully!')
+      setLoading(false) // Reset loading state
+      window.location.href = data.user.role === 'organizer' ? '/organizer' : '/staff'
+
+    } catch (error) {
+      toast.error('Network error. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-8">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-gold/5 blur-[100px]" />
+        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] rounded-full bg-teal/5 blur-[80px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.65 }}
+        className="relative z-10 w-full max-w-md"
+      >
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gold/15 border border-gold/25 flex items-center justify-center">
+              <i className="fa-solid fa-star text-gold" style={{fontSize:'0.75rem'}}/>
+            </div>
+            <span className="font-display text-3xl text-gold font-semibold tracking-widest">joycard</span>
+          </Link>
+          <p className="text-cream/30 text-xs mt-2 tracking-widest uppercase">Create Account</p>
+        </div>
+
+        <div className="glass-gold p-6 sm:p-9">
+          <h1 className="font-display text-2xl font-semibold text-cream mb-1">Sign Up</h1>
+          <p className="text-cream/40 text-sm mb-7">Join the event management team</p>
+
+          {/* Role Toggle */}
+          <div className="role-toggle">
+            {(['organizer', 'staff'] as const).map(r => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                className={`role-toggle-btn${role === r ? ' active' : ''}`}
+              >
+                <i className={`fa-solid ${r === 'organizer' ? 'fa-envelope' : 'fa-id-badge'}`} />
+                {r.charAt(0).toUpperCase() + r.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="label">Full Name</label>
+              <div className="input-group">
+                <i className="fa-solid fa-user input-icon" />
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="input"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <div className="input-group">
+                <i className="fa-solid fa-envelope input-icon" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="input"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Phone Number</label>
+              <div className="input-group">
+                <i className="fa-solid fa-phone input-icon" />
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+255123456789"
+                  className="input"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <div className="input-group">
+                <i className="fa-solid fa-lock input-icon" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="input"
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label">Confirm Password</label>
+              <div className="input-group">
+                <i className="fa-solid fa-lock input-icon" />
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your password"
+                  className="input"
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-gold w-full py-3.5 mt-1"
+            >
+              {loading
+                ? <><span className="spinner"/>Creating account…</>
+                : <><i className="fa-solid fa-user-plus mr-2"/>Sign up as {role.charAt(0).toUpperCase() + role.slice(1)}</>
+              }
+            </button>
+          </form>
+
+          <div className="divider" />
+          <p className="text-center text-cream/25 text-xs">
+            Already have an account?{' '}
+            <Link href="/login" className="text-gold/60 hover:text-gold underline underline-offset-2 transition-colors">
+              Sign in <i className="fa-solid fa-arrow-right fa-icon-sm" />
+            </Link>
+          </p>
+        </div>
+
+        <p className="text-center text-cream/15 text-xs mt-6 tracking-widest">
+          © {new Date().getFullYear()} joycard
+        </p>
+      </motion.div>
+    </div>
+  )
+}
