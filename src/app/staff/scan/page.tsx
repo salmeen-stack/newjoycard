@@ -15,6 +15,90 @@ interface GuestInfo {
   event_title: string
 }
 
+interface CenterNotificationProps {
+  type: 'success' | 'warning' | 'error'
+  message: string
+  guestInfo?: GuestInfo
+  onClose: () => void
+}
+
+function CenterNotification({ type, message, guestInfo, onClose }: CenterNotificationProps) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="glass-gold p-6 rounded-2xl max-w-md w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center mb-6">
+          <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
+            type === 'success' ? 'bg-teal/20 border border-teal/20' :
+            type === 'warning' ? 'bg-amber-500/20 border border-amber-500/20' :
+            'bg-rose-500/20 border border-rose-500/20'
+          }`}>
+            <i className={`text-2xl sm:text-3xl ${
+              type === 'success' ? 'fa-solid fa-circle-check text-teal' :
+              type === 'warning' ? 'fa-solid fa-triangle-exclamation text-amber-400' :
+              'fa-solid fa-circle-xmark text-rose-400'
+            }`} />
+          </div>
+          <h3 className="font-display text-xl text-cream mb-2">
+            {type === 'success' ? 'Check-in Successful' :
+             type === 'warning' ? 'Already Checked In' :
+             'Check-in Failed'}
+          </h3>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="text-center">
+            <p className={`font-semibold mb-4 ${
+              type === 'success' ? 'text-teal' :
+              type === 'warning' ? 'text-amber-400' :
+              'text-rose-400'
+            }`}>{message}</p>
+            
+            {guestInfo && (
+              <div className="bg-white/5 rounded-xl p-4 text-left">
+                <h4 className="font-display text-cream mb-3 text-center">Guest Details</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-cream/60">Name:</span>
+                    <span className="text-cream font-medium">{guestInfo.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-cream/60">Card Type:</span>
+                    <span className="text-cream font-medium">{guestInfo.card_type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-cream/60">Event:</span>
+                    <span className="text-cream font-medium">{guestInfo.event_title}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <button
+          onClick={onClose}
+          className="btn-gold w-full py-3 mt-6"
+        >
+          <i className="fa-solid fa-check mr-2"></i>
+          OK
+        </button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 function ConfirmModal({ guestInfo, onConfirm, onCancel }: { 
   guestInfo: GuestInfo
   onConfirm: () => void
@@ -92,6 +176,11 @@ function Content() {
   const [error, setError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [capturedGuest, setCapturedGuest] = useState<GuestInfo | null>(null)
+  const [centerNotification, setCenterNotification] = useState<{
+    type: 'success' | 'warning' | 'error'
+    message: string
+    guestInfo?: GuestInfo
+  } | null>(null)
   const scanRef = useRef<{stop:()=>Promise<void>}|null>(null)
   const busy = useRef(false)
   const scannerActive = useRef(false)
@@ -151,13 +240,12 @@ function Content() {
         setShowConfirmModal(false)
         setCapturedGuest(null)
         
-        // Show notification after modal closes
+        // Show center notification after modal closes
         setTimeout(() => {
-          setResult({
-            valid: true,
-            alreadyScanned: false,
+          setCenterNotification({
+            type: 'success',
             message: 'Guest checked in successfully',
-            guest: data.guest
+            guestInfo: data.guest
           })
         }, 300) // Wait for modal animation to complete
         
@@ -169,11 +257,10 @@ function Content() {
         setCapturedGuest(null)
         
         setTimeout(() => {
-          setResult({
-            valid: true,
-            alreadyScanned: data.alreadyScanned || false,
+          setCenterNotification({
+            type: 'warning',
             message: data.alreadyScanned ? 'Guest was already checked in' : 'Guest already checked in',
-            guest: data.guest
+            guestInfo: data.guest
           })
         }, 300)
       }
@@ -183,15 +270,14 @@ function Content() {
       setCapturedGuest(null)
       
       setTimeout(() => {
-        setResult({
-          valid: false,
-          alreadyScanned: false,
+        setCenterNotification({
+          type: 'error',
           message: 'Failed to check in guest'
         })
       }, 300)
     }
     
-    setTimeout(() => { setResult(null); busy.current = false }, 5000) // Auto-dismiss after 5 seconds
+    busy.current = false
   }
 
   const handleCancelConfirm = () => {
@@ -420,43 +506,6 @@ function Content() {
         {scanning && <div className="flex justify-center mt-4"><button onClick={stop} className="btn-ghost w-full sm:w-auto px-8">Stop Scanner</button></div>}
       </div>
 
-      <AnimatePresence>
-        {result && (
-          <motion.div 
-            initial={{opacity:0,y:20,scale:.95}} 
-            animate={{opacity:1,y:0,scale:1}} 
-            exit={{opacity:0,y:-20,scale:.95}}
-            className={`p-4 sm:p-5 rounded-2xl border mb-5 cursor-pointer transition-transform hover:scale-[1.02] ${result.valid?'bg-teal/10 border-teal/30':result.alreadyScanned?'bg-amber-500/10 border-amber-500/30':'bg-rose-500/10 border-rose-500/30'}`}
-            onClick={() => setResult(null)}
-          >
-            <div className="flex items-start gap-3 sm:gap-4">
-              <span className={`text-2xl flex-shrink-0 ${result.valid?'text-teal':result.alreadyScanned?'text-amber-400':'text-rose-400'}`}>
-                {result.valid
-                  ? <i className="fa-solid fa-circle-check"/>
-                  : result.alreadyScanned
-                    ? <i className="fa-solid fa-triangle-exclamation"/>
-                    : <i className="fa-solid fa-circle-xmark"/>}
-              </span>
-              <div>
-                <p className={`font-semibold mb-2 ${result.valid?'text-teal':result.alreadyScanned?'text-amber-400':'text-rose-400'}`}>{result.message}</p>
-                {result.guest && (
-                  <div className="space-y-1">
-                    <p className="text-cream font-display text-lg">{result.guest.name}</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <span className="badge badge-slate">{result.guest.card_type} entry</span>
-                      <span className="badge badge-gold">{result.guest.dress_code}</span>
-                    </div>
-                    {result.alreadyScanned && result.guest.scanned_at && (
-                      <p className="text-amber-400/55 text-xs">First scan: {format(new Date(result.guest.scanned_at),'h:mm a')}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
       {/* Confirmation Modal */}
       <AnimatePresence>
         {showConfirmModal && capturedGuest && (
@@ -464,6 +513,18 @@ function Content() {
             guestInfo={capturedGuest}
             onConfirm={handleConfirmCheckIn}
             onCancel={handleCancelConfirm}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Center Notification */}
+      <AnimatePresence>
+        {centerNotification && (
+          <CenterNotification
+            type={centerNotification.type}
+            message={centerNotification.message}
+            guestInfo={centerNotification.guestInfo}
+            onClose={() => setCenterNotification(null)}
           />
         )}
       </AnimatePresence>
