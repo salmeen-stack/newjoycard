@@ -100,26 +100,19 @@ function Content() {
     if (busy.current) return
     busy.current = true
     
-    console.log('handleScan called with token:', token)
-    console.log('Token format validation:', /^[a-f0-9-]{36}$/.test(token))
-    
     try {
       // Parse QR code to extract guest info without auto-verifying
       const response = await fetch(`/api/invitations/${token}/parse`, { method: 'POST' })
-      console.log('Parse API response status:', response.status)
       
       // Check if response is HTML (error page) instead of JSON
       const contentType = response.headers.get('content-type')
-      console.log('Response content-type:', contentType)
       
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text()
-        console.log('Received HTML response instead of JSON:', text.substring(0, 200))
         throw new Error('API returned HTML error page - check server logs')
       }
       
       const data = await response.json()
-      console.log('Parse API response data:', data)
       
       if (data.guest) {
         setCapturedGuest(data.guest)
@@ -141,12 +134,6 @@ function Content() {
         setTimeout(() => { setResult(null); busy.current = false }, 3000)
       }
     } catch (error: unknown) {
-      console.error('QR scan error:', error)
-      console.error('Error details:', {
-        name: (error as Error)?.name || 'Unknown',
-        message: (error as Error)?.message || 'Unknown error',
-        stack: (error as Error)?.stack || 'No stack trace'
-      })
       setResult({
         valid: false,
         alreadyScanned: false,
@@ -183,7 +170,6 @@ function Content() {
         })
       }
     } catch (error: unknown) {
-      console.error('Check-in error:', error)
       setResult({
         valid: false,
         alreadyScanned: false,
@@ -214,106 +200,77 @@ function Content() {
         throw new Error('Camera access requires HTTPS in production. Please ensure your site is served over HTTPS.')
       }
       
-      // ✅ Enhanced camera permission check
+      // Enhanced camera permission check
       try {
         const permissions = await navigator.permissions.query({ name: 'camera' as PermissionName })
         if (permissions.state === 'denied') {
           throw new Error('Camera access denied. Please enable camera permissions in your browser settings.')
         }
       } catch (permError) {
-        console.warn('Permission query failed, continuing:', permError)
+        // Permission query failed, continuing silently
       }
       
-      console.log('Requesting camera access...')
-      
-      // ✅ Enhanced camera API support check
+      // Enhanced camera API support check
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('Camera API not supported')
         throw new Error('Camera API not supported in this browser. Please use a modern browser like Chrome, Firefox, or Safari.')
       }
       
-      // ✅ Production-safe import with error handling
+      // Production-safe import with error handling
       let Html5Qrcode
       try {
         const module = await import('html5-qrcode')
         Html5Qrcode = module.Html5Qrcode
-        console.log('Html5Qrcode imported successfully')
       } catch (importError) {
-        console.error('Failed to import html5-qrcode:', importError)
         throw new Error('Failed to load QR scanner library. Please refresh the page and try again.')
       }
       
-      // ✅ Create scanner with error handling
+      // Create scanner with error handling
       let scanner
       try {
-        // ✅ Small delay to ensure DOM is updated
+        // Small delay to ensure DOM is updated
         await new Promise(resolve => setTimeout(resolve, 100))
         
-        // ✅ Check if container exists and is visible
+        // Check if container exists and is visible
         const container = document.getElementById('qr-reader')
         if (!container) {
           throw new Error('QR scanner container not found')
         }
         
-        console.log('Container found:', container)
-        console.log('Container visible:', !container.classList.contains('hidden'))
-        console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight)
-        
-        // ✅ Force container to be visible
+        // Force container to be visible
         container.style.display = 'block'
         container.style.visibility = 'visible'
         
         scanner = new Html5Qrcode('qr-reader')
         scanRef.current = scanner
-        console.log('Scanner instance created')
       } catch (scannerError) {
-        console.error('Failed to create scanner:', scannerError)
         throw new Error('Failed to initialize QR scanner. Please refresh the page and try again.')
       }
       
-      // ✅ Production-safe camera configuration with fallback
+      // Production-safe camera configuration with fallback
       const getCameraConfig = () => {
-        // ✅ Create config object with exactly one key, no spreading, no merging
         const config = Object.freeze({ facingMode: 'environment' })
-        
-        // Log for debugging
-        console.log('Generated camera config:', config)
-        console.log('Config keys:', Object.keys(config))
-        console.log('Config validation:', Object.keys(config).length === 1)
-        console.log('Config type:', typeof config)
-        console.log('Config frozen:', Object.isFrozen(config))
-        
         return config
       }
       
       const cameraConfig = getCameraConfig()
       
-      // ✅ Double validation before starting
-      console.log('Final camera config before start:', cameraConfig)
-      console.log('Final config keys:', Object.keys(cameraConfig))
-      console.log('Final config length:', Object.keys(cameraConfig).length)
-      
-      // ✅ Validate config before starting
+      // Double validation before starting
+      // Validate config before starting
       if (typeof cameraConfig !== 'object' || Object.keys(cameraConfig).length !== 1) {
-        console.error('Invalid camera config:', cameraConfig)
         throw new Error('Invalid camera configuration detected. Please refresh the page.')
       }
       
-      console.log('Starting scanner with validated config...')
-      
-      // ✅ Enhanced scanner start with comprehensive error handling
+      // Enhanced scanner start with comprehensive error handling
       await scanner.start(
-        cameraConfig, // ✅ Exactly one key
+        cameraConfig, // Exactly one key
         { 
           fps: 10, 
           qrbox: { width: 260, height: 260 },
-          // ✅ Additional production-safe options
+          // Additional production-safe options
           disableFlip: false
         },
         async (text) => {
           try {
-            console.log('QR Scanner detected:', text)
-            
             // Handle full URLs and direct tokens
             let token = text
             
@@ -324,43 +281,49 @@ function Content() {
               token = text.split('/verify/')[1]
             }
             
-            console.log('Extracted token:', token)
-            
             // Validate token format
             const tokenMatch = token.match(/^[a-f0-9-]{36}$/)
             if (tokenMatch) {
               await handleScan(token)
-            } else {
-              console.log('Invalid token format:', token)
             }
           } catch (scanError) {
-            console.error('Scan processing error:', scanError)
+            // Error handled silently
           }
         },
         (errorMessage) => {
-          // ✅ Show all errors for debugging
-          console.log('Scanner error:', errorMessage)
-          
-          // Only filter out expected "no QR code" messages during normal scanning
+          // Enhanced error filtering - ignore common scanner errors
           if (errorMessage.includes('No QR code found') || 
               errorMessage.includes('No barcode or QR code detected')) {
             // Don't show error for normal scanning state
             return
           }
           
-          // Show all other errors
-          setError(`Scanner error: ${errorMessage}`)
+          // Show helpful error messages for common issues
+          let userFriendlyMessage = errorMessage
+          if (errorMessage.includes('No MultiFormat Readers were able to detect the code')) {
+            userFriendlyMessage = 'QR code not clear. Please hold the QR code steady and well-lit.'
+          } else if (errorMessage.includes('Camera access denied') || errorMessage.includes('NotAllowedError')) {
+            userFriendlyMessage = 'Camera permission denied. Please allow camera access in your browser settings.'
+          } else if (errorMessage.includes('NotFoundError') || errorMessage.includes('no camera')) {
+            userFriendlyMessage = 'No camera found. Please ensure your device has a working camera.'
+          } else if (errorMessage.includes('NotReadableError') || errorMessage.includes('already in use')) {
+            userFriendlyMessage = 'Camera is already in use by another application. Please close other apps using the camera.'
+          } else if (errorMessage.includes('HTTPS') || errorMessage.includes('secure')) {
+            userFriendlyMessage = 'Camera requires HTTPS. Please ensure you are accessing this page over a secure connection.'
+          } else if (errorMessage.includes('not supported') || errorMessage.includes('getUserMedia')) {
+            userFriendlyMessage = 'Camera not supported. Please use a modern browser like Chrome, Firefox, or Safari.'
+          }
+          
+          setError(`Scanner error: ${userFriendlyMessage}`)
         }
       )
       
-      console.log('Scanner started successfully')
-      setScanning(true) // ✅ Set scanning to true after successful start
+      setScanning(true) // Set scanning to true after successful start
       
     } catch (err) {
-      console.error('Scanner start failed:', err)
       const errorMsg = err instanceof Error ? err.message : 'Unknown error'
       
-      // ✅ Enhanced production error messages
+      // Enhanced production error messages
       if (errorMsg.includes('Permission denied') || errorMsg.includes('NotAllowedError')) {
         setError('Camera access denied. Please allow camera access and try again.')
       } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('no camera')) {

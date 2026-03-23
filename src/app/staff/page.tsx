@@ -361,7 +361,6 @@ export default function StaffDashboard() {
         }
       })
       .catch(error => {
-        console.error('Failed to refresh events:', error)
         toast.error('Failed to load events. Please try again.')
         setEvs([])
       })
@@ -473,9 +472,13 @@ export default function StaffDashboard() {
             <h1 className="font-display text-3xl sm:text-4xl font-semibold text-cream">Upcoming Events</h1>
             <p className="text-cream/35 text-sm mt-1">
               {currentAssignment ? (
-                <i className="fa-solid fa-ban mr-1"></i>You can take an event
+                <>
+                  <i className="fa-solid fa-circle-check mr-1 text-teal"></i>You can take an event
+                </>
               ) : (
-                <i className="fa-solid fa-circle-check mr-1 text-teal"></i>You can take an event
+                <>
+                  <i className="fa-solid fa-circle-check mr-1 text-teal"></i>You can take an event
+                </>
               )}
             </p>
           </div>
