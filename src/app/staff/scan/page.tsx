@@ -98,10 +98,14 @@ function Content() {
     if (busy.current) return
     busy.current = true
     
+    console.log('handleScan called with token:', token)
+    
     try {
       // Parse QR code to extract guest info without auto-verifying
       const response = await fetch(`/api/invitations/parse/${token}`, { method: 'POST' })
+      console.log('Parse API response status:', response.status)
       const data = await response.json()
+      console.log('Parse API response data:', data)
       
       if (data.guest) {
         setCapturedGuest(data.guest)
@@ -280,10 +284,26 @@ function Content() {
         },
         async (text) => {
           try {
-            // Extract QR code data without auto-verifying
-            const m = text.match(/\/invite\/([a-f0-9-]{36})/)||text.match(/\/verify\/([a-f0-9-]{36})/)
-            if (m) {
-              await handleScan(m[1])
+            console.log('QR Scanner detected:', text)
+            
+            // Handle full URLs and direct tokens
+            let token = text
+            
+            // Extract token from full URL
+            if (text.includes('/invite/')) {
+              token = text.split('/invite/')[1]
+            } else if (text.includes('/verify/')) {
+              token = text.split('/verify/')[1]
+            }
+            
+            console.log('Extracted token:', token)
+            
+            // Validate token format
+            const tokenMatch = token.match(/^[a-f0-9-]{36}$/)
+            if (tokenMatch) {
+              await handleScan(token)
+            } else {
+              console.log('Invalid token format:', token)
             }
           } catch (scanError) {
             console.error('Scan processing error:', scanError)
