@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 interface ScanResult { valid:boolean; alreadyScanned:boolean; message:string; guest?:{name:string;card_type:string;dress_code:string;event_title:string;scanned_at?:string} }
 interface Recent { name:string; card_type:string; time:string }
 interface GuestInfo {
+  id: string
   name: string
   card_type: string
   dress_code: string
@@ -158,7 +159,8 @@ function Content() {
     if (!capturedGuest) return
     
     try {
-      const response = await fetch(`/api/invitations/verify/${capturedGuest.dress_code}`, { method: 'POST' })
+      // Use invitation ID from parsed guest data
+      const response = await fetch(`/api/invitations/verify/${capturedGuest.id}`, { method: 'POST' })
       const data = await response.json()
       
       if (data.valid) {
