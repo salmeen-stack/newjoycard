@@ -87,7 +87,7 @@ function Content() {
   const [result, setResult] = useState<ScanResult|null>(null)
   const [recent, setRecent] = useState<Recent[]>([])
   const [count, setCount] = useState(0)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [capturedGuest, setCapturedGuest] = useState<GuestInfo | null>(null)
   const scanRef = useRef<{stop:()=>Promise<void>}|null>(null)
@@ -99,6 +99,7 @@ function Content() {
     busy.current = true
     
     console.log('handleScan called with token:', token)
+    console.log('Token format validation:', /^[a-f0-9-]{36}$/.test(token))
     
     try {
       // Parse QR code to extract guest info without auto-verifying
@@ -109,21 +110,31 @@ function Content() {
       
       if (data.guest) {
         setCapturedGuest(data.guest)
-        setShowConfirmModal(true)
+        setResult({
+          valid: true,
+          alreadyScanned: data.guest.scanned_at ? true : false,
+          message: data.guest.scanned_at ? 'Guest already checked in' : 'Guest found - ready to check in',
+          guest: data.guest
+        })
       } else {
         setResult({
           valid: false,
           alreadyScanned: false,
-          message: data.message || 'Invalid QR code'
+          message: data.error || 'Invalid QR code'
         })
         setTimeout(() => { setResult(null); busy.current = false }, 3000)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('QR scan error:', error)
+      console.error('Error details:', {
+        name: (error as Error)?.name || 'Unknown',
+        message: (error as Error)?.message || 'Unknown error',
+        stack: (error as Error)?.stack || 'No stack trace'
+      })
       setResult({
         valid: false,
         alreadyScanned: false,
-        message: 'Failed to scan QR code'
+        message: `Scan error: ${(error as Error)?.message || 'Failed to scan QR code'}`
       })
       setTimeout(() => { setResult(null); busy.current = false }, 3000)
     }
@@ -154,7 +165,7 @@ function Content() {
           message: data.message || 'Failed to check in guest'
         })
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Check-in error:', error)
       setResult({
         valid: false,
@@ -310,14 +321,18 @@ function Content() {
           }
         },
         (errorMessage) => {
-          // ✅ Enhanced error filtering
-          if (!errorMessage.includes('No QR code found') && 
-              !errorMessage.includes('NotFoundException') &&
-              !errorMessage.includes('MultiFormatReader') &&
-              !errorMessage.includes('NotFoundException') &&
-              !errorMessage.includes('No barcode or QR code detected')) {
-            console.log('Scanner error:', errorMessage)
+          // ✅ Show all errors for debugging
+          console.log('Scanner error:', errorMessage)
+          
+          // Only filter out expected "no QR code" messages during normal scanning
+          if (errorMessage.includes('No QR code found') || 
+              errorMessage.includes('No barcode or QR code detected')) {
+            // Don't show error for normal scanning state
+            return
           }
+          
+          // Show all other errors
+          setError(`Scanner error: ${errorMessage}`)
         }
       )
       
@@ -404,6 +419,18 @@ function Content() {
                 </div>
               </div>
             )}
+            
+            {/* Debug Test Button */}
+            <div className="mb-6 w-full">
+              <p className="text-cream/60 text-sm mb-2">Debug: Test with sample token</p>
+              <button
+                onClick={() => handleScan('a1b2c3d4e5f678901234567890123456789012345678')}
+                className="btn-ghost w-full text-sm"
+              >
+                🧪 Test with Sample Token
+              </button>
+            </div>
+            
             <button onClick={start} className="btn-gold w-full sm:w-auto px-12 py-4">Start Scanner</button>
           </div>
         )}
