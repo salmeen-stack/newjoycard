@@ -89,7 +89,7 @@ function ManualScanContent() {
   const eventId = sp.get('event')
 
   async function handleManualScan() {
-    const qrCode = prompt('Enter QR code or guest ID:')
+    const qrCode = prompt('Enter QR code token (36-character UUID like: 550e8400-e29b-41d4-a716-446655440000):')
     if (!qrCode) return
     
     setScanning(true)
@@ -117,6 +117,53 @@ function ManualScanContent() {
         toast.error(data.error || 'Invalid QR code')
       }
     } catch (error) {
+      console.error('Manual scan error:', error)
+      setLastScan({
+        valid: false,
+        message: 'Failed to verify QR code'
+      })
+      toast.error('Failed to verify QR code')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  // Debug function to test with sample token
+  const testWithSample = () => {
+    const sampleToken = '550e8400-e29b-41d4-a716-446655440000'
+    if (confirm(`Test with sample token: ${sampleToken}?`)) {
+      handleManualScanWithToken(sampleToken)
+    }
+  }
+
+  const handleManualScanWithToken = async (qrCode: string) => {
+    setScanning(true)
+    try {
+      console.log('Testing with token:', qrCode)
+      const res = await fetch(`/api/invitations/${qrCode}/parse`, {
+        method: 'POST'
+      })
+      const data = await res.json()
+      console.log('Parse response:', data)
+      
+      if (data.guest) {
+        setCapturedGuest(data.guest)
+        setShowConfirmModal(true)
+        setLastScan({
+          valid: true,
+          message: data.guest.scanned_at ? 'Guest already checked in' : 'Guest found - ready to check in',
+          guest: data.guest,
+          alreadyScanned: data.guest.scanned_at ? true : false
+        })
+      } else {
+        setLastScan({
+          valid: false,
+          message: data.error || 'Invalid QR code'
+        })
+        toast.error(data.error || 'Invalid QR code')
+      }
+    } catch (error) {
+      console.error('Manual scan error:', error)
       setLastScan({
         valid: false,
         message: 'Failed to verify QR code'
@@ -167,7 +214,8 @@ function ManualScanContent() {
       <motion.div initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} className="mb-6 sm:mb-10">
         <p className="text-cream/30 text-xs tracking-widest uppercase mb-1">Staff</p>
         <h1 className="font-display text-3xl sm:text-4xl font-semibold text-cream">Manual QR Entry</h1>
-        <p className="text-cream/35 text-sm mt-1">Enter QR code manually when camera access is not available</p>
+        <p className="text-cream/35 text-sm mt-1">Enter QR code token manually when camera access is not available</p>
+        <p className="text-cream/25 text-xs mt-2">QR tokens are 36-character UUIDs (e.g., 550e8400-e29b-41d4-a716-446655440000)</p>
       </motion.div>
 
       <div className="glass-gold p-4 sm:p-6 mb-5 sm:mb-6">
@@ -184,9 +232,18 @@ function ManualScanContent() {
         <button
           onClick={handleManualScan}
           disabled={scanning}
-          className="btn-gold w-full"
+          className="btn-gold w-full mb-3"
         >
-          {scanning ? 'Scanning...' : <><i className="fa-solid fa-qrcode mr-2"/>Enter QR Code</>}
+          {scanning ? 'Scanning...' : <><i className="fa-solid fa-qrcode mr-2"/>Enter QR Token</>}
+        </button>
+
+        {/* Debug Test Button */}
+        <button
+          onClick={testWithSample}
+          disabled={scanning}
+          className="btn-ghost w-full text-sm"
+        >
+          🧪 Test with Sample Token
         </button>
       </div>
 
