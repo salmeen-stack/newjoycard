@@ -1,12 +1,90 @@
 'use client'
 import { useState, Suspense } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 
+interface GuestInfo {
+  id: string
+  qr_token: string
+  name: string
+  card_type: string
+  dress_code: string
+  event_title: string
+}
+
+function ConfirmModal({ guestInfo, onConfirm, onCancel }: { 
+  guestInfo: GuestInfo
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="glass-gold p-6 rounded-2xl max-w-md w-full mx-4"
+      >
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gold/20 border border-gold/20 flex items-center justify-center mx-auto mb-4">
+            <i className="fa-solid fa-qrcode text-gold text-2xl sm:text-3xl" />
+          </div>
+          <h3 className="font-display text-xl text-cream mb-2">Confirm Guest Check-In</h3>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-cream/60 text-sm mb-1">Guest Name</p>
+            <p className="font-display text-lg text-cream">{guestInfo.name}</p>
+          </div>
+          
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-cream/60 text-sm mb-1">Card Type</p>
+            <p className="font-display text-lg text-cream">{guestInfo.card_type}</p>
+          </div>
+          
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-cream/60 text-sm mb-1">Dress Code</p>
+            <p className="font-display text-lg text-cream">{guestInfo.dress_code}</p>
+          </div>
+          
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-cream/60 text-sm mb-1">Event</p>
+            <p className="font-display text-lg text-cream">{guestInfo.event_title}</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onCancel}
+            className="btn-ghost flex-1 py-3"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="btn-gold flex-1 py-3"
+          >
+            <i className="fa-solid fa-check mr-2"></i>
+            Check In Guest
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 function ManualScanContent() {
   const [scanning, setScanning] = useState(false)
-  const [lastScan, setLastScan] = useState<{valid: boolean; message: string; guest?: any} | null>(null)
+  const [lastScan, setLastScan] = useState<{valid: boolean; message: string; guest?: any; alreadyScanned?: boolean} | null>(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [capturedGuest, setCapturedGuest] = useState<GuestInfo | null>(null)
   const sp = useSearchParams()
   const eventId = sp.get('event')
 
@@ -16,23 +94,72 @@ function ManualScanContent() {
     
     setScanning(true)
     try {
-      const res = await fetch(`/api/invitations/verify/${qrCode}`, {
+      // Use parse API first to get guest info
+      const res = await fetch(`/api/invitations/${qrCode}/parse`, {
         method: 'POST'
       })
       const data = await res.json()
       
-      setLastScan(data)
-      
-      if (data.valid) {
-        toast.success(`${data.guest?.name || 'Guest'} checked in!`)
+      if (data.guest) {
+        setCapturedGuest(data.guest)
+        setShowConfirmModal(true)
+        setLastScan({
+          valid: true,
+          message: data.guest.scanned_at ? 'Guest already checked in' : 'Guest found - ready to check in',
+          guest: data.guest,
+          alreadyScanned: data.guest.scanned_at ? true : false
+        })
       } else {
-        toast.error(data.message || 'Invalid QR code')
+        setLastScan({
+          valid: false,
+          message: data.error || 'Invalid QR code'
+        })
+        toast.error(data.error || 'Invalid QR code')
       }
     } catch (error) {
+      setLastScan({
+        valid: false,
+        message: 'Failed to verify QR code'
+      })
       toast.error('Failed to verify QR code')
     } finally {
       setScanning(false)
     }
+  }
+
+  const handleConfirmCheckIn = async () => {
+    if (!capturedGuest) return
+    
+    try {
+      const response = await fetch(`/api/invitations/verify/${capturedGuest.qr_token}`, { method: 'POST' })
+      const data = await response.json()
+      
+      if (data.valid) {
+        toast.success(`${data.guest?.name || 'Guest'} checked in successfully!`)
+        setLastScan({
+          valid: true,
+          message: 'Guest checked in successfully',
+          guest: data.guest,
+          alreadyScanned: false
+        })
+      } else {
+        toast.error(data.message || 'Failed to check in guest')
+        setLastScan({
+          valid: false,
+          message: data.message || 'Failed to check in guest'
+        })
+      }
+    } catch (error) {
+      toast.error('Failed to check in guest')
+    }
+    
+    setShowConfirmModal(false)
+    setCapturedGuest(null)
+  }
+
+  const handleCancelConfirm = () => {
+    setShowConfirmModal(false)
+    setCapturedGuest(null)
   }
 
   return (
@@ -56,10 +183,10 @@ function ManualScanContent() {
 
         <button
           onClick={handleManualScan}
-          disabled={scanning || !eventId}
+          disabled={scanning}
           className="btn-gold w-full"
         >
-          {scanning ? 'Scanning...' : <><i className="fa-solid fa-qrcode mr-2"/>Scan QR Code</>}
+          {scanning ? 'Scanning...' : <><i className="fa-solid fa-qrcode mr-2"/>Enter QR Code</>}
         </button>
       </div>
 
@@ -80,7 +207,7 @@ function ManualScanContent() {
             <span className={`badge ${
               lastScan.valid ? 'badge-teal' : 'badge-red-400'
             }`}>
-              {lastScan.valid ? 'Valid' : 'Invalid'}
+              {lastScan.alreadyScanned ? 'Already Checked In' : lastScan.valid ? 'Valid' : 'Invalid'}
             </span>
           </div>
 
@@ -102,6 +229,10 @@ function ManualScanContent() {
                     <span className="text-cream/45">Entry:</span>
                     <p className="text-cream font-medium">{lastScan.guest.card_type}</p>
                   </div>
+                  <div>
+                    <span className="text-cream/45">Dress Code:</span>
+                    <p className="text-cream font-medium">{lastScan.guest.dress_code}</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -115,6 +246,17 @@ function ManualScanContent() {
           </button>
         </motion.div>
       )}
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmModal && capturedGuest && (
+          <ConfirmModal
+            guestInfo={capturedGuest}
+            onConfirm={handleConfirmCheckIn}
+            onCancel={handleCancelConfirm}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

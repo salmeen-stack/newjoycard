@@ -117,13 +117,8 @@ function Content() {
       if (data.guest) {
         setCapturedGuest(data.guest)
         setShowConfirmModal(true)
-        setResult({
-          valid: true,
-          alreadyScanned: data.guest.scanned_at ? true : false,
-          message: data.guest.scanned_at ? 'Guest already checked in' : 'Guest found - ready to check in',
-          guest: data.guest
-        })
-        // Don't auto-clear result when showing modal
+        // Don't show result notification when opening modal
+        // The notification will be shown after modal interaction
         busy.current = false
       } else {
         setResult({
@@ -152,32 +147,51 @@ function Content() {
       const data = await response.json()
       
       if (data.valid) {
-        setResult({
-          valid: true,
-          alreadyScanned: false,
-          message: 'Guest checked in successfully',
-          guest: data.guest
-        })
-        setCount(c => c + 1)
-        setRecent(prev => [{name: data.guest!.name, card_type: data.guest!.card_type, time: new Date().toLocaleTimeString()}, ...prev.slice(0, 9)])
+        // Close modal immediately
         setShowConfirmModal(false)
         setCapturedGuest(null)
+        
+        // Show notification after modal closes
+        setTimeout(() => {
+          setResult({
+            valid: true,
+            alreadyScanned: false,
+            message: 'Guest checked in successfully',
+            guest: data.guest
+          })
+        }, 300) // Wait for modal animation to complete
+        
+        setCount(c => c + 1)
+        setRecent(prev => [{name: data.guest!.name, card_type: data.guest!.card_type, time: new Date().toLocaleTimeString()}, ...prev.slice(0, 9)])
       } else {
-        setResult({
-          valid: false,
-          alreadyScanned: data.alreadyScanned || false,
-          message: data.message || 'Failed to check in guest'
-        })
+        // For already scanned guests, close modal then show notification
+        setShowConfirmModal(false)
+        setCapturedGuest(null)
+        
+        setTimeout(() => {
+          setResult({
+            valid: true,
+            alreadyScanned: data.alreadyScanned || false,
+            message: data.alreadyScanned ? 'Guest was already checked in' : 'Guest already checked in',
+            guest: data.guest
+          })
+        }, 300)
       }
     } catch (error: unknown) {
-      setResult({
-        valid: false,
-        alreadyScanned: false,
-        message: 'Failed to check in guest'
-      })
+      // Close modal on error too
+      setShowConfirmModal(false)
+      setCapturedGuest(null)
+      
+      setTimeout(() => {
+        setResult({
+          valid: false,
+          alreadyScanned: false,
+          message: 'Failed to check in guest'
+        })
+      }, 300)
     }
     
-    setTimeout(() => { setResult(null); busy.current = false }, 3000)
+    setTimeout(() => { setResult(null); busy.current = false }, 5000) // Auto-dismiss after 5 seconds
   }
 
   const handleCancelConfirm = () => {
@@ -400,17 +414,6 @@ function Content() {
               </div>
             )}
             
-            {/* Debug Test Button */}
-            <div className="mb-6 w-full">
-              <p className="text-cream/60 text-sm mb-2">Debug: Test with sample token</p>
-              <button
-                onClick={() => handleScan('550e8400-e29b-41d4-a716-446655440000')}
-                className="btn-ghost w-full text-sm"
-              >
-                🧪 Test with Sample Token
-              </button>
-            </div>
-            
             <button onClick={start} className="btn-gold w-full sm:w-auto px-12 py-4">Start Scanner</button>
           </div>
         )}
@@ -419,8 +422,13 @@ function Content() {
 
       <AnimatePresence>
         {result && (
-          <motion.div initial={{opacity:0,y:20,scale:.95}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-20,scale:.95}}
-            className={`p-4 sm:p-5 rounded-2xl border mb-5 ${result.valid?'bg-teal/10 border-teal/30':result.alreadyScanned?'bg-amber-500/10 border-amber-500/30':'bg-rose-500/10 border-rose-500/30'}`}>
+          <motion.div 
+            initial={{opacity:0,y:20,scale:.95}} 
+            animate={{opacity:1,y:0,scale:1}} 
+            exit={{opacity:0,y:-20,scale:.95}}
+            className={`p-4 sm:p-5 rounded-2xl border mb-5 cursor-pointer transition-transform hover:scale-[1.02] ${result.valid?'bg-teal/10 border-teal/30':result.alreadyScanned?'bg-amber-500/10 border-amber-500/30':'bg-rose-500/10 border-rose-500/30'}`}
+            onClick={() => setResult(null)}
+          >
             <div className="flex items-start gap-3 sm:gap-4">
               <span className={`text-2xl flex-shrink-0 ${result.valid?'text-teal':result.alreadyScanned?'text-amber-400':'text-rose-400'}`}>
                 {result.valid
