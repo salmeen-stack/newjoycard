@@ -121,12 +121,15 @@ function Content() {
       
       if (data.guest) {
         setCapturedGuest(data.guest)
+        setShowConfirmModal(true)
         setResult({
           valid: true,
           alreadyScanned: data.guest.scanned_at ? true : false,
           message: data.guest.scanned_at ? 'Guest already checked in' : 'Guest found - ready to check in',
           guest: data.guest
         })
+        // Don't auto-clear result when showing modal
+        busy.current = false
       } else {
         setResult({
           valid: false,
