@@ -52,8 +52,8 @@ export async function POST(
       SELECT 
         g.id,
         g.name,
-        g.card_type,
-        g.dress_code,
+        i.card_type,
+        i.dress_code,
         e.title as event_title,
         e.date as event_date
       FROM invitations i
