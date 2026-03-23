@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest) {
     `
 
     // Force production URL for debugging
-    const base = 'https://joycardv2.vercel.app'
+    const base = 'https://newjoycard-six.vercel.app'
     
     // Debug logging
     console.log('API Base URL:', base, 'Env vars:', {

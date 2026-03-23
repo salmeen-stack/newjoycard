@@ -24,7 +24,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         setInv(d.invitation)
         const QR = (await import('qrcode')).default
         // Force production URL for debugging
-        const url = `https://joycardv2.vercel.app/invite/${token}`
+        const url = `https://newjoycard-six.vercel.app/invite/${token}`
         
         // Debug logging
         console.log('Generated URL:', url, 'Env var:', process.env.NEXT_PUBLIC_APP_URL)

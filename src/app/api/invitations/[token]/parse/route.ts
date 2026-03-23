@@ -8,25 +8,44 @@ export async function POST(
   try {
     const { token } = await params
     
+    console.log('QR Parse API - Received token:', token)
+    
     if (!token) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 })
     }
     
     // Parse the QR code token to extract guest information
-    // Expected format: /invite/[guest_id] or /verify/[guest_id]
+    // Expected formats: 
+    // - /invite/[guest_id]
+    // - /verify/[guest_id] 
+    // - https://domain.com/invite/[guest_id]
+    // - https://domain.com/verify/[guest_id]
+    // - [guest_id] (direct token)
     let guestId: string | null = null
     
-    if (token.startsWith('/invite/')) {
-      guestId = token.replace('/invite/', '')
-    } else if (token.startsWith('/verify/')) {
-      guestId = token.replace('/verify/', '')
+    // Handle full URLs
+    if (token.includes('/invite/')) {
+      guestId = token.split('/invite/')[1]
+    } else if (token.includes('/verify/')) {
+      guestId = token.split('/verify/')[1]
+    } else if (token.startsWith('http')) {
+      // Extract path from full URL
+      const urlPath = new URL(token).pathname
+      if (urlPath.includes('/invite/')) {
+        guestId = urlPath.split('/invite/')[1]
+      } else if (urlPath.includes('/verify/')) {
+        guestId = urlPath.split('/verify/')[1]
+      }
     } else {
-      return NextResponse.json({ error: 'Invalid QR code format' }, { status: 400 })
+      // Assume it's a direct guest ID
+      guestId = token
     }
     
     if (!guestId) {
-      return NextResponse.json({ error: 'Invalid guest ID in QR code' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid QR code format' }, { status: 400 })
     }
+    
+    console.log('QR Parse API - Extracted guest ID:', guestId)
     
     // Get guest information from database
     const [guest] = await sql`
