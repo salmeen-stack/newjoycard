@@ -378,26 +378,26 @@ export default function Home() {
             <ul className="space-y-2">
               <li className="text-cream/40 text-sm">
                 <i className="fa-solid fa-envelope mr-2 text-gold/60"></i>
-                <a href="mailto:hello@joycard.app" className="hover:text-gold transition-colors">
-                  hello@joycard.app
+                <a href="mailto:joycardtz@gmail.com" className="hover:text-gold transition-colors">
+                  joycardtz@gmail.com
                 </a>
               </li>
               <li className="text-cream/40 text-sm">
                 <i className="fa-solid fa-phone mr-2 text-gold/60"></i>
-                <a href="tel:+1234567890" className="hover:text-gold transition-colors">
-                  +1 (234) 567-890
+                <a href="tel:+25557680678" className="hover:text-gold transition-colors">
+                  +255 576 806 78
                 </a>
               </li>
               <li className="text-cream/40 text-sm">
-                <i className="fa-solid fa-mobile-alt mr-2 text-gold/60"></i>
-                <a href="tel:+1987654321" className="hover:text-gold transition-colors">
-                  +1 (987) 654-321
-                </a>
-              </li>
-              <li className="text-cream/40 text-sm">
-                <i className="fa-solid fa-headset mr-2 text-gold/60"></i>
+                <i className="fa-solid fa-building mr-2 text-gold/60"></i>
                 <a href="#" className="hover:text-gold transition-colors">
-                  24/7 Support
+                  Offices - Kiibaha, Kwa Mathias, Tanzania
+                </a>
+              </li>
+              <li className="text-cream/40 text-sm">
+                <i className="fa-solid fa-globe mr-2 text-gold/60"></i>
+                <a href="#" className="hover:text-gold transition-colors">
+                  Social Media - Account will be updated later
                 </a>
               </li>
             </ul>
