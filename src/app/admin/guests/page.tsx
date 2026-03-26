@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 
-interface Guest { id:number; name:string; contact:string; channel:string; event_title:string; card_type?:string; scanned_at?:string; sent_via_email?:boolean; sent_via_whatsapp?:boolean }
+interface Guest { id:number; name:string; contact:string; channel:string; event_title:string; card_type?:string; scanned_at?:string; sent_via_email?:boolean; sent_via_whatsapp?:boolean; sms_token?:string; sms_used?:boolean }
 interface EventItem { id:number; title:string }
 
 export default function AdminGuests() {
@@ -61,10 +61,19 @@ export default function AdminGuests() {
                   <td className="font-medium text-cream">{g.name}</td>
                   <td className="text-cream/45 text-xs">{g.event_title}</td>
                   <td className="text-cream/45 text-xs">{g.contact}</td>
-                  <td><span className={`badge ${g.channel==='email'?'badge-gold':'badge-teal'}`}>{g.channel}</span></td>
+                  <td><span className={`badge ${
+                    g.channel==='email'?'badge-gold':
+                    g.channel==='whatsapp'?'badge-teal':
+                    'badge-amber-400'
+                  }`}>{g.channel}</span></td>
                   <td><span className="badge badge-slate">{g.card_type||'—'}</span></td>
                   <td>
                     {g.scanned_at?<span className="badge badge-teal"><i className="fa-solid fa-check mr-1"></i>In</span>
+                    :g.channel==='sms' && g.sms_token ? (
+                      g.sms_used ? 
+                        <span className="badge badge-teal"><i className="fa-solid fa-check mr-1"></i>Used</span>:
+                        <span className="badge badge-amber-400"><i className="fa-solid fa-mobile-alt mr-1"></i>{g.sms_token}</span>
+                    )
                     :g.sent_via_email||g.sent_via_whatsapp?<span className="badge badge-gold">Sent</span>
                     :<span className="badge badge-slate">Pending</span>}
                   </td>

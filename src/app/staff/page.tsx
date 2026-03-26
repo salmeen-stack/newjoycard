@@ -143,6 +143,9 @@ function Card({ ev, today, onTakeEvent, onLeaveEvent, currentAssignment }: {
           <Link href={`/staff/scan?event=${ev.event_id}`} className="btn-gold flex-1 text-center block py-3 text-sm">
             <i className="fa-solid fa-qrcode mr-2"></i>QR Scanner
           </Link>
+          <Link href={`/staff/sms-checkin?event=${ev.event_id}`} className="btn-amber-400 flex-1 text-center block py-3 text-sm bg-amber-400/20 border border-amber-400/30 hover:bg-amber-400/30">
+            <i className="fa-solid fa-mobile-alt mr-2"></i>SMS Token
+          </Link>
           <button
             onClick={handleLeaveEvent}
             disabled={leaving}
@@ -305,6 +308,9 @@ function EventListItem({ ev, today, onTakeEvent, onLeaveEvent, currentAssignment
                 <div className="flex gap-2">
                   <Link href={`/staff/scan?event=${ev.event_id}`} className="btn-gold flex-1 text-center block py-3 text-sm">
                     <i className="fa-solid fa-qrcode mr-2"></i>QR Scanner
+                  </Link>
+                  <Link href={`/staff/sms-checkin?event=${ev.event_id}`} className="btn-amber-400 flex-1 text-center block py-3 text-sm bg-amber-400/20 border border-amber-400/30 hover:bg-amber-400/30">
+                    <i className="fa-solid fa-mobile-alt mr-2"></i>SMS Token
                   </Link>
                   <button
                     onClick={handleLeaveEvent}

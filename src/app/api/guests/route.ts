@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sql from '@/lib/db'
 import { requireRole } from '@/lib/apiAuth'
-import { generateToken } from '@/lib/qr'
+import { generateToken, generateSMSToken } from '@/lib/qr'
 
 export async function GET(req: NextRequest) {
   const auth = requireRole(req, 'admin', 'organizer', 'staff')
@@ -14,16 +14,16 @@ export async function GET(req: NextRequest) {
     let guests
     if (user.role === 'admin') {
       guests = eventId
-        ? await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id WHERE g.event_id=${eventId} ORDER BY g.created_at DESC`
-        : await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id ORDER BY g.created_at DESC`
+        ? await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, i.sms_token, i.sms_used, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id WHERE g.event_id=${eventId} ORDER BY g.created_at DESC`
+        : await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, i.sms_token, i.sms_used, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id ORDER BY g.created_at DESC`
     } else if (user.role === 'organizer') {
       guests = eventId
-        ? await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id WHERE g.event_id=${eventId} AND EXISTS (SELECT 1 FROM organizer_assignments oa WHERE oa.organizer_id=${user.id} AND oa.event_id=g.event_id) ORDER BY g.created_at DESC`
-        : await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id WHERE EXISTS (SELECT 1 FROM organizer_assignments oa WHERE oa.organizer_id=${user.id} AND oa.event_id=g.event_id) ORDER BY g.created_at DESC`
+        ? await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, i.sms_token, i.sms_used FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id WHERE g.event_id=${eventId} AND EXISTS (SELECT 1 FROM organizer_assignments oa WHERE oa.organizer_id=${user.id} AND oa.event_id=g.event_id) ORDER BY g.created_at DESC`
+        : await sql`SELECT g.*, i.id AS inv_id, i.card_url, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sent_via_email, i.sent_via_whatsapp, i.sms_token, i.sms_used, e.title AS event_title FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id LEFT JOIN events e ON e.id=g.event_id WHERE EXISTS (SELECT 1 FROM organizer_assignments oa WHERE oa.organizer_id=${user.id} AND oa.event_id=g.event_id) ORDER BY g.created_at DESC`
     } else {
       // staff — must provide event_id
       guests = eventId
-        ? await sql`SELECT g.*, i.id AS inv_id, i.card_type, i.dress_code, i.qr_token, i.scanned_at FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id WHERE g.event_id=${eventId} AND EXISTS (SELECT 1 FROM staff_events se WHERE se.staff_id=${user.id} AND se.event_id=g.event_id) ORDER BY g.name ASC`
+        ? await sql`SELECT g.*, i.id AS inv_id, i.card_type, i.dress_code, i.qr_token, i.scanned_at, i.sms_token, i.sms_used FROM guests g LEFT JOIN invitations i ON i.guest_id=g.id WHERE g.event_id=${eventId} AND EXISTS (SELECT 1 FROM staff_events se WHERE se.staff_id=${user.id} AND se.event_id=g.event_id) ORDER BY g.name ASC`
         : []
     }
     return NextResponse.json({ guests })
@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'event_id, name, channel required' }, { status: 400 })
     
     // Validate channel
-    if (!['email', 'whatsapp'].includes(channel))
-      return NextResponse.json({ error: 'channel must be email or whatsapp' }, { status: 400 })
+    if (!['email', 'whatsapp', 'sms'].includes(channel))
+      return NextResponse.json({ error: 'channel must be email, whatsapp, or sms' }, { status: 400 })
     
     // Validate contact based on channel
     if (channel === 'email' && !contact)
@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
     
     if (channel === 'whatsapp' && !phone)
       return NextResponse.json({ error: 'phone is required when channel is whatsapp' }, { status: 400 })
+    
+    if (channel === 'sms' && !phone)
+      return NextResponse.json({ error: 'phone is required when channel is sms' }, { status: 400 })
 
     if (user.role === 'organizer') {
       const [asgn] = await sql`
@@ -66,15 +69,29 @@ export async function POST(req: NextRequest) {
 
     const [guest] = await sql`
       INSERT INTO guests (event_id, name, contact, phone, channel)
-      VALUES (${event_id}, ${name}, ${channel === 'email' ? contact : phone}, ${channel === 'whatsapp' ? phone : null}, ${channel})
+      VALUES (${event_id}, ${name}, ${channel === 'email' ? contact : phone}, ${channel === 'whatsapp' || channel === 'sms' ? phone : null}, ${channel})
       RETURNING *
     `
-    const token = generateToken()
-    const [invitation] = await sql`
-      INSERT INTO invitations (guest_id, card_type, dress_code, qr_token)
-      VALUES (${guest.id}, ${card_type ?? 'single'}, ${dress_code ?? 'Smart Casual'}, ${token})
-      RETURNING *
-    `
+    
+    // Generate appropriate token based on channel
+    const token = channel === 'sms' ? generateSMSToken() : generateToken()
+    
+    let invitation
+    if (channel === 'sms') {
+      // For SMS guests, insert both qr_token and sms_token
+      [invitation] = await sql`
+        INSERT INTO invitations (guest_id, card_type, dress_code, qr_token, sms_token)
+        VALUES (${guest.id}, ${card_type ?? 'single'}, ${dress_code ?? 'Smart Casual'}, ${token}, ${token})
+        RETURNING *
+      `
+    } else {
+      // For digital guests, insert only qr_token
+      [invitation] = await sql`
+        INSERT INTO invitations (guest_id, card_type, dress_code, qr_token)
+        VALUES (${guest.id}, ${card_type ?? 'single'}, ${dress_code ?? 'Smart Casual'}, ${token})
+        RETURNING *
+      `
+    }
     return NextResponse.json({ guest, invitation }, { status: 201 })
   } catch (err) { console.error(err); return NextResponse.json({ error: 'Server error' }, { status: 500 }) }
 }

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-interface Guest { id:number; name:string; contact:string; channel:string; card_type?:string; dress_code?:string; inv_id?:number; qr_token?:string; scanned_at?:string; sent_via_email?:boolean; sent_via_whatsapp?:boolean }
+interface Guest { id:number; name:string; contact:string; channel:string; card_type?:string; dress_code?:string; inv_id?:number; qr_token?:string; scanned_at?:string; sent_via_email?:boolean; sent_via_whatsapp?:boolean; sms_token?:string; sms_used?:boolean }
 interface Asgn  { id:number; event_id:number; event_title:string; guest_limit:number; guests_added:number }
 const INIT = { name:'', contact:'', phone:'', channel:'email', card_type:'single', dress_code:'Smart Casual' }
 
@@ -201,7 +201,7 @@ function Content() {
     setForm({
       name: guest.name,
       contact: guest.contact,
-      phone: guest.channel === 'whatsapp' ? guest.contact : '',
+      phone: guest.channel !== 'email' ? guest.contact : '',
       channel: guest.channel,
       card_type: guest.card_type || 'single',
       dress_code: guest.dress_code || 'Smart Casual'
@@ -407,10 +407,11 @@ function Content() {
                     <select 
                       className="input" 
                       value={form.channel} 
-                      onChange={e=>setForm(f=>({...f,channel:e.target.value, contact: e.target.value === 'email' ? f.contact : f.phone, phone: e.target.value === 'whatsapp' ? f.phone : ''}))}
+                      onChange={e=>setForm(f=>({...f,channel:e.target.value, contact: e.target.value === 'email' ? f.contact : f.phone, phone: e.target.value !== 'email' ? f.phone : ''}))}
                     >
                       <option value="email">Email</option>
                       <option value="whatsapp">WhatsApp</option>
+                      <option value="sms">SMS (Analog Phone)</option>
                     </select>
                   </div>
                   <div>
@@ -424,7 +425,7 @@ function Content() {
                       onChange={e=>setForm(f=>({
                         ...f, 
                         contact: form.channel === 'email' ? e.target.value : f.contact,
-                        phone: form.channel === 'whatsapp' ? e.target.value : f.phone
+                        phone: form.channel !== 'email' ? e.target.value : f.phone
                       }))} 
                       placeholder={form.channel === 'email' ? 'email@example.com' : '+1234567890'} 
                     />
@@ -585,11 +586,20 @@ function Content() {
                   </td>
                   <td className="font-medium text-cream">{g.name}</td>
                   <td className="text-cream/45 text-xs">{g.contact}</td>
-                  <td><span className={`badge ${g.channel==='email'?'badge-gold':'badge-teal'}`}>{g.channel}</span></td>
+                  <td><span className={`badge ${
+                    g.channel==='email'?'badge-gold':
+                    g.channel==='whatsapp'?'badge-teal':
+                    'badge-amber-400'
+                  }`}>{g.channel}</span></td>
                   <td><span className="badge badge-slate">{g.card_type||'single'}</span></td>
                   <td className="text-cream/45 text-xs">{g.dress_code||'—'}</td>
                   <td>
                     {g.scanned_at?<span className="badge badge-teal"><i className="fa-solid fa-check mr-1"></i>In</span>
+                    :g.channel==='sms' && g.sms_token ? (
+                      g.sms_used ? 
+                        <span className="badge badge-teal"><i className="fa-solid fa-check mr-1"></i>Used</span>:
+                        <span className="badge badge-amber-400"><i className="fa-solid fa-mobile-alt mr-1"></i>{g.sms_token}</span>
+                    )
                     :g.sent_via_email||g.sent_via_whatsapp?<span className="badge badge-gold">Sent</span>
                     :<span className="badge badge-slate">Pending</span>}
                   </td>

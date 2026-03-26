@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "node scripts/push-schema.js"
+    "db:push": "node scripts/push-schema.js",
+    "db:show": "node scripts/show-schema.js",
+    "test:sms": "node scripts/test-sms-token.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",

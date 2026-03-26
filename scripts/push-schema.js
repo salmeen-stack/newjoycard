@@ -19,6 +19,7 @@ async function main() {
     id         SERIAL PRIMARY KEY,
     name       TEXT NOT NULL,
     email      TEXT NOT NULL UNIQUE,
+    phone      TEXT,
     password   TEXT NOT NULL,
     role       TEXT NOT NULL CHECK (role IN ('admin','organizer','staff')),
     verified   BOOLEAN NOT NULL DEFAULT FALSE,
@@ -40,7 +41,8 @@ async function main() {
     event_id   INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     name       TEXT NOT NULL,
     contact    TEXT NOT NULL,
-    channel    TEXT NOT NULL CHECK (channel IN ('email','whatsapp')),
+    phone      TEXT,
+    channel    TEXT NOT NULL CHECK (channel IN ('email','whatsapp','sms')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`
   await sql`CREATE INDEX idx_guests_event ON guests(event_id)`
@@ -55,6 +57,8 @@ async function main() {
     scanned_at        TIMESTAMPTZ,
     sent_via_email    BOOLEAN NOT NULL DEFAULT FALSE,
     sent_via_whatsapp BOOLEAN NOT NULL DEFAULT FALSE,
+    sms_token         VARCHAR(6) UNIQUE,
+    sms_used          BOOLEAN DEFAULT FALSE,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`
   await sql`CREATE INDEX idx_inv_guest   ON invitations(guest_id)`

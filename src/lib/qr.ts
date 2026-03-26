@@ -5,6 +5,11 @@ export function generateToken(): string {
   return uuidv4()
 }
 
+export function generateSMSToken(): string {
+  // Generate a unique 6-digit numeric token
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
 export async function generateQRDataURL(token: string, baseUrl: string): Promise<string> {
   const url = `${baseUrl}/invite/${token}`
   return QRCode.toDataURL(url, {
