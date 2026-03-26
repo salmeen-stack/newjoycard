@@ -410,19 +410,17 @@ export default function Home() {
               <div className="text-cream/40 text-sm">
                 <i className="fa-solid fa-building mr-2 text-gold/60"></i>
                 <span className="block">Joycard Headquarters</span>
-                <span className="block text-xs mt-1">123 Tech Street, Suite 100</span>
-                <span className="block text-xs">San Francisco, CA 94105</span>
+                <span className="block text-xs mt-1">Kiibaha, Kwa Mathias, Tanzania</span>
               </div>
               <div className="text-cream/40 text-sm">
                 <i className="fa-solid fa-globe mr-2 text-gold/60"></i>
-                <span className="block">Global Presence</span>
-                <span className="block text-xs mt-1">United States, Europe, Asia</span>
-                <span className="block text-xs">50+ Countries Worldwide</span>
+                <span className="block">Regional Presence</span>
+                <span className="block text-xs mt-1">East Africa & Growing</span>
               </div>
               <div className="text-cream/40 text-sm">
                 <i className="fa-solid fa-clock mr-2 text-gold/60"></i>
                 <span className="block">Business Hours</span>
-                <span className="block text-xs mt-1">Mon-Fri: 9AM-6PM PST</span>
+                <span className="block text-xs mt-1">Mon-Fri: 9AM-6PM EAT</span>
                 <span className="block text-xs">24/7 Emergency Support</span>
               </div>
             </div>
