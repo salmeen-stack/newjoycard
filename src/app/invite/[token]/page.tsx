@@ -77,7 +77,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.3}} className="text-cream/30 text-xs mb-8 z-10">Tap the card below or <button onClick={handleFlip} className="text-gold underline">click here</button> to reveal your QR code</motion.p>
 
       {/* Card flip */}
-      <div className="scene w-full max-w-sm z-10" style={{height:520,perspective:'1200px'}}>
+      <div className="scene w-full max-w-sm z-10" style={{height:'min(90vh, 520px)',perspective:'1200px'}}>
         <motion.div className={`card-inner cursor-pointer ${flipped?'flipped':''}`}
           onClick={handleFlip}
           initial={{scale:.9,opacity:0}} animate={{scale:1,opacity:1}} transition={{duration:.7,type:'spring'}}>
